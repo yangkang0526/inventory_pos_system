@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}库存管理 - 库存收银系统{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-boxes"></i> 商品管理</h5>
+        <button class="btn btn-primary btn-sm float-end" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="fas fa-plus"></i> 添加商品
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="productTable">
+                <thead>
+                    <tr>
+                        <th>编码</th>
+                        <th>名称</th>
+                        <th>分类</th>
+                        <th>单价</th>
+                        <th>成本价</th>
+                        <th>库存</th>
+                        <th>单位</th>
+                        <th>最低库存</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product[1] }}</td>
+                        <td>{{ product[2] }}</td>
+                        <td>{{ product[3] }}</td>
+                        <td>¥{{ "%.2f"|format(product[4]) }}</td>
+                        <td>¥{{ "%.2f"|format(product[5]) }}</td>
+                        <td class="{% if product[6] <= product[7] %}text-danger fw-bold{% endif %}">
+                            {{ product[6] }}
+                        </td>
+                        <td>{{ product[8] }}</td>
+                        <td>{{ product[7] }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info" onclick="stockIn({{ product[0] }}, '{{ product[2] }}')">
+                                <i class="fas fa-arrow-down"></i> 入库
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="stockOut({{ product[0] }}, '{{ product[2] }}', {{ product[6] }})">
+                                <i class="fas fa-arrow-up"></i> 出库
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="editProduct({{ product|tojson }})">
+                                <i class="fas fa-edit"></i> 编辑
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加商品模态框 -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加商品</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addProductForm">
+                    <div class="mb-3">
+                        <label>商品编码 *</label>
+                        <input type="text" id="code" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>商品名称 *</label>
+                        <input type="text" id="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>分类</label>
+                        <input type="text" id="category" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label>单价 *</label>
+                        <input type="number" id="price" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>成本价</label>
+                        <input type="number" id="cost" class="form-control" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label>初始库存</label>
+                        <input type="number" id="quantity" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label>单位</label>
+                        <input type="text" id="unit" class="form-control" value="个">
+                    </div>
+                    <div class="mb-3">
+                        <label>最低库存预警</label>
+                        <input type="number" id="minQuantity" class="form-control" value="10">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddProduct()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function stockIn(productId, productName) {
+    Swal.fire({
+        title: `${productName} - 入库`,
+        html: `
+            <input type="number" id="quantity" class="swal2-input" placeholder="数量" step="1" min="1">
+            <input type="number" id="costPrice" class="swal2-input" placeholder="进价" step="0.01">
+            <input type="text" id="supplier" class="swal2-input" placeholder="供应商">
+            <textarea id="remark" class="swal2-textarea" placeholder="备注"></textarea>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '确认入库',
+        preConfirm: () => {
+            const quantity = document.getElementById('quantity').value;
+            if (!quantity || quantity <= 0) {
+                Swal.showValidationMessage('请输入有效的数量');
+                return false;
+            }
+            return {
+                quantity: parseInt(quantity),
+                costPrice: parseFloat(document.getElementById('costPrice').value) || 0,
+                supplier: document.getElementById('supplier').value,
+                remark: document.getElementById('remark').value
+            };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: '/api/stock/in',
+               
