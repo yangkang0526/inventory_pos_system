@@ -1,6 +1,5 @@
 import sqlite3
 from datetime import datetime
-import json
 
 class Database:
     def __init__(self):
@@ -71,14 +70,11 @@ class Database:
         ''')
         
         self.conn.commit()
-        
-        # 添加示例数据
         self.add_sample_data()
     
     def add_sample_data(self):
         cursor = self.conn.cursor()
         
-        # 检查是否已有数据
         cursor.execute("SELECT COUNT(*) FROM products")
         if cursor.fetchone()[0] == 0:
             sample_products = [
@@ -101,11 +97,6 @@ class Database:
         cursor.execute("SELECT * FROM products ORDER BY id")
         return cursor.fetchall()
     
-    def get_product_by_code(self, code):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM products WHERE code = ?", (code,))
-        return cursor.fetchone()
-    
     def get_product_by_id(self, product_id):
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM products WHERE id = ?", (product_id,))
@@ -119,15 +110,6 @@ class Database:
         ''', (code, name, category, price, cost, quantity, min_quantity, unit))
         self.conn.commit()
         return cursor.lastrowid
-    
-    def update_product(self, product_id, code, name, category, price, cost, min_quantity, unit):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            UPDATE products 
-            SET code=?, name=?, category=?, price=?, cost=?, min_quantity=?, unit=?
-            WHERE id=?
-        ''', (code, name, category, price, cost, min_quantity, unit, product_id))
-        self.conn.commit()
     
     def update_stock(self, product_id, quantity_change):
         cursor = self.conn.cursor()
@@ -211,19 +193,15 @@ class Database:
     def get_dashboard_stats(self):
         cursor = self.conn.cursor()
         
-        # 总销售额
         cursor.execute("SELECT COALESCE(SUM(total), 0) FROM sales WHERE DATE(created_at) = DATE('now')")
         today_sales = cursor.fetchone()[0]
         
-        # 总销售数量
         cursor.execute("SELECT COALESCE(SUM(quantity), 0) FROM sales WHERE DATE(created_at) = DATE('now')")
         today_quantity = cursor.fetchone()[0]
         
-        # 总产品数
         cursor.execute("SELECT COUNT(*) FROM products")
         total_products = cursor.fetchone()[0]
         
-        # 低库存产品数
         cursor.execute("SELECT COUNT(*) FROM products WHERE quantity <= min_quantity")
         low_stock_count = cursor.fetchone()[0]
         
