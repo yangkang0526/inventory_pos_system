@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}收银台 - 库存收银系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-shopping-cart"></i> 购物车</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" id="productSearch" class="form-control" placeholder="输入商品编码或名称搜索">
+                        <button class="btn btn-primary" onclick="searchProduct()">
+                            <i class="fas fa-search"></i> 搜索
+                        </button>
+                    </div>
+                    <div id="searchResults" class="mt-2"></div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>商品名称</th>
+                                <th>单价</th>
+                                <th>数量</th>
+                                <th>小计</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartItems">
+                            <tr>
+                                <td colspan="5" class="text-center">购物车为空</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>总计：</strong></td>
+                                <td colspan="2"><strong id="totalAmount">¥0.00</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-credit-card"></i> 结算</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>付款方式</label>
+                    <select id="paymentMethod" class="form-control">
+                        <option value="现金">现金</option>
+                        <option value="微信支付">微信支付</option>
+                        <option value="支付宝">支付宝</option>
+                        <option value="银行卡">银行卡</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>客户姓名</label>
+                    <input type="text" id="customerName" class="form-control" placeholder="散客">
+                </div>
+                <div class="mb-3">
+                    <label>备注</label>
+                    <textarea id="remark" class="form-control" rows="3"></textarea>
+                </div>
+                <button class="btn btn-success btn-lg w-100" onclick="checkout()">
+                    <i class="fas fa-check-circle"></i> 确认收款
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let cart = [];
+let products = {{ products | tojson }};
+
+function searchProduct() {
+    const searchTerm = $('#productSearch').val().toLowerCase();
+    const results = products.filter(p => 
+        p[1].toLowerCase().includes(searchTerm) || 
+        p[2].toLowerCase().includes(searchTerm)
+    );
+    
+    if (results.length > 0) {
+        let html = '<div class="list-group">';
+        results.forEach(product => {
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${product[1]}</strong> - ${product[2]}<br>
+                            <small>库存: ${product[6]} | 价格: ¥${product[4]}</small>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="addToCart(${product[0]}, '${product[2]}', ${product[4]})">
+                            <i class="fas fa-plus"></i> 添加
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        $('#searchResults').html(html);
+    } else {
+        $('#searchResults').html('<div class="alert alert-warning mt-2">未找到商品</div>');
+    }
+}
+
+function addToCart(productId, productName, price) {
+    const existingItem = cart.find(item => item.id === productId);
+    if (existingItem) {
+        existingItem.quantity++;
+    } else {
+        cart.push({
+            id: productId,
+            name: productName,
+            price: price,
+            quantity: 1
+        });
+    }
+    updateCartDisplay();
+}
+
+function updateCartDisplay() {
+    if (cart.length === 0) {
+        $('#cartItems').html('<tr><td colspan="5" class="text-center">购物车为空</td></tr>');
+        $('#totalAmount').text('¥0.00');
+        return;
+    }
+    
+    let html = '';
+    let total = 0;
+    cart.forEach((item, index) => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+        html += `
+            <tr>
+                <td>${item.name}</td>
+                <td>¥${item.price}</td>
+                <td>
+                    <div class="input-group" style="width: 120px;">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, -1)">-</button>
+                        <input type="number" class="form-control form-control-sm text-center" value="${item.quantity}" onchange="setQuantity(${index}, this.value)">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateQuantity(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td>¥${subtotal.toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    $('#cartItems').html(html);
+    $('#totalAmount').text(`¥${total.toFixed(2)}`);
+}
+
+function updateQuantity(index, delta) {
+    const newQuantity = cart[index].quantity + delta;
+    if (newQuantity > 0) {
+        cart[index].quantity = newQuantity;
+    } else {
+        cart.splice(index, 1);
+    }
+    updateCartDisplay();
+}
+
+function setQuantity(index, value) {
+    const quantity = parseInt(value);
+    if (quantity > 0) {
+        cart[index].quantity = quantity;
+    } else {
+        cart.splice(index, 1);
+    }
+    updateCartDisplay();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    updateCartDisplay();
+}
+
+function checkout() {
+    if (cart.length === 0) {
+        Swal.fire('错误', '购物车为空', 'error');
+        return;
+    }
+    
+    // 检查库存
+    for (let item of cart) {
+        const product = products.find(p => p[0] === item.id);
+        if (product[6] < item.quantity) {
+            Swal.fire('库存不足', `${product[2]} 库存不足，当前库存: ${product[6]}`, 'error');
+            return;
+        }
+    }
+    
+    // 创建销售记录
+    let completed = 0;
+    for (let item of cart) {
+        $.ajax({
+            url: '/api/sale',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                product_id: item.id,
+                quantity: item.quantity,
+                price: item.price,
+                total: item.price * item.quantity,
+                payment_method: $('#paymentMethod').val(),
+                customer_name: $('#customerName').val() || '散客',
+                remark: $('#remark').val()
+            }),
+            async: false,
+            success: function(response) {
+                if (response.success) {
+                    completed++;
+                } else {
+                    Swal.fire('错误', response.error, 'error');
+                }
+            }
+        });
+    }
+    
+    if (completed === cart.length) {
+        Swal.fire('成功', '收款完成！', 'success').then(() => {
+            location.reload();
+        });
+    }
+}
+
+// 支持回车搜索
+$('#productSearch').keypress(function(e) {
+    if (e.which === 13) {
+        searchProduct();
+    }
+});
+</script>
+{% endblock %}
