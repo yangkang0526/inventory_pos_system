@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板 - 库存收银系统{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">今日销售额</h5>
+                <h2>¥{{ "%.2f"|format(stats.today_sales) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">今日销量</h5>
+                <h2>{{ stats.today_quantity }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">商品总数</h5>
+                <h2>{{ stats.total_products }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5 class="card-title">低库存商品</h5>
+                <h2>{{ stats.low_stock_count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-exclamation-triangle"></i> 低库存预警</h5>
+            </div>
+            <div class="card-body">
+                {% if low_stock %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>商品编码</th>
+                                <th>商品名称</th>
+                                <th>当前库存</th>
+                                <th>最低库存</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in low_stock %}
+                            <tr class="table-warning">
+                                <td>{{ product[1] }}</td>
+                                <td>{{ product[2] }}</td>
+                                <td>{{ product[6] }}</td>
+                                <td>{{ product[7] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-success">所有商品库存充足！</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-simple"></i> 快捷操作</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/pos" class="btn btn-success btn-lg">
+                        <i class="fas fa-cash-register"></i> 开始收银
+                    </a>
+                    <a href="/inventory" class="btn btn-primary btn-lg">
+                        <i class="fas fa-boxes"></i> 管理库存
+                    </a>
+                    <a href="/reports" class="btn btn-info btn-lg">
+                        <i class="fas fa-chart-line"></i> 查看报表
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
